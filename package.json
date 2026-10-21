@@ -1,0 +1,10 @@
+{
+  "name": "human-vs-trojan-github-pages-p2p",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub Pages-only Human vs Trojan multiplayer game using browser WebRTC",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

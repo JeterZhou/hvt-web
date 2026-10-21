@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#071019">
+  <title>Human vs Trojan | Cyber Arena</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <button id="langToggle" class="lang-toggle" type="button">EN</button>
+  <section id="landing" class="center">
+    <div class="card hero">
+      <div id="landingEyebrow" class="eyebrow">CYBER ARENA // TWO PLAYER CO-OP ADVERSARY</div>
+      <h1>HUMAN <span>VS</span> TROJAN</h1>
+      <p id="landingSubtitle" class="subtitle">浏览器实时攻防对抗 · Web Cyber Arena</p>
+      <div class="room-controls">
+        <label id="nicknameLabel" for="nickname">玩家昵称</label>
+        <input id="nickname" maxlength="20" placeholder="输入玩家昵称" autocomplete="nickname">
+        <button id="createBtn" onclick="createRoom()">创建房间（攻击方）</button>
+        <div class="separator"><span id="separatorText">或者加入已有房间</span></div>
+        <label id="roomInputLabel" for="roomInput">房主邀请文本</label>
+        <textarea id="roomInput" class="invite-input" maxlength="30000" rows="4" placeholder="粘贴朋友发来的完整邀请文本" autocomplete="off"></textarea>
+        <div class="join-row">
+          <select id="roleInput" aria-label="选择阵营"><option value="defender">防守方</option><option value="attacker" disabled>攻击方（房主专用）</option></select>
+          <button class="secondary" id="joinBtn" onclick="joinRoom()">使用邀请加入</button>
+        </div>
+      </div>
+      <p id="landingHint" class="muted">仅使用 GitHub Pages 网页和浏览器 WebRTC。房主创建邀请，朋友粘贴邀请并把答复发回房主；连接成功后双方准备即可开始。</p>
+      <div id="roomListHead" class="room-list-head">当前房间</div>
+      <div id="lobby" class="lobby muted">正在加载房间...</div>
+    </div>
+  </section>
+
+  <section id="waiting" class="center hidden">
+    <div class="card waiting-card">
+      <div id="waitingEyebrow" class="eyebrow">MATCH LOBBY // WAITING FOR PLAYERS</div>
+      <h2 id="waitingTitle">等待双方准备</h2>
+      <p id="waitingSubtitle" class="muted">房主把邀请发给朋友；朋友生成答复后发回房主。完成连接后双方点击准备。</p>
+      <div class="room-ticket"><span id="roomCodeLabel">连接标识</span><strong id="waitingCode">P2P</strong><button id="copyRoomBtn" class="secondary" onclick="copyRoom()">复制邀请文本 <icon-copy>⧉</icon-copy></button></div>
+      <div id="hostSignalPanel" class="signal-panel hidden">
+        <p id="hostSignalHelp">把下面的邀请文本发给朋友。朋友生成答复后，请粘贴到下方并点击连接。</p>
+        <label for="offerOutput">邀请文本（发给朋友）</label>
+        <textarea id="offerOutput" rows="4" readonly spellcheck="false"></textarea>
+        <label for="answerInput">朋友返回的答复</label>
+        <textarea id="answerInput" rows="4" placeholder="将朋友发回的完整答复粘贴到这里" spellcheck="false"></textarea>
+        <button id="acceptAnswerBtn" onclick="acceptPeerAnswer()">应用答复并连接</button>
+      </div>
+      <div id="guestSignalPanel" class="signal-panel hidden">
+        <p id="guestSignalHelp">请把下方答复文本完整复制并发回房主；房主应用答复后会自动连接。</p>
+        <label for="answerOutput">答复文本（发回房主）</label>
+        <textarea id="answerOutput" rows="4" readonly spellcheck="false"></textarea>
+      </div>
+      <div class="player-grid">
+        <div class="player-slot attack-slot"><span id="attackerRoleLabel" class="slot-role">ATTACKER / 攻击方</span><b id="attackerName">等待加入...</b><span id="attackerReady" class="slot-badge">未准备</span></div>
+        <div class="player-slot defense-slot"><span id="defenderRoleLabel" class="slot-role">DEFENDER / 防守方</span><b id="defenderName">等待加入...</b><span id="defenderReady" class="slot-badge">未准备</span></div>
+      </div>
+      <div class="waiting-actions"><button id="readyBtn" onclick="toggleReady()">准备就绪</button><button id="leaveLobbyBtn" class="ghost" onclick="leaveLobby()">返回首页</button></div>
+      <p id="waitingHint" class="muted" aria-live="polite">连接房间中...</p>
+      <span id="waitingConnection" class="connection">● 连接中</span>
+    </div>
+  </section>
+
+  <div id="game" class="hidden">
+    <header class="game-header">
+      <b class="brand">HVT <em>//</em> <span id="role"></span></b>
+      <div class="room-meta"><span id="roomMetaLabel">房间</span> <strong id="room"></strong></div>
+      <div class="room-meta" id="round"></div>
+      <div id="phase" class="phase-pill"></div>
+      <div class="connection" id="connection">● 连接中</div>
+    </header>
+    <main>
+      <section class="map" aria-label="实时对抗网络地图">
+        <div class="map-head"><strong id="mapHeadTitle">NETWORK TOPOLOGY</strong><span id="mapHeadLive">LIVE // 实时战况</span></div>
+        <svg id="graph" viewBox="0 0 1000 650" role="img" aria-label="可旋转、缩放、点击的三维网络拓扑图">
+          <g id="viewport"><g id="spaceLayer" aria-hidden="true"></g><g id="edgeLayer"></g><g id="nodeLayer"></g></g>
+        </svg>
+        <canvas id="effectsCanvas" aria-hidden="true"></canvas>
+        <div id="fxNotice" class="fx-notice hidden" aria-live="polite"></div>
+        <div class="map-controls"><button id="resetCamera" title="重置视角">⟲ 重置视角</button><button id="focusCamera" title="聚焦已选择节点">◎ 聚焦目标</button></div>
+        <div class="map-readout"><b id="mapCount">3D TACTICAL GRID</b><span id="nodeDetail">点击节点查看状态</span></div>
+        <div id="mapHint" class="map-hint">拖动旋转 · Shift+拖动平移 · 滚轮缩放 · 点击选择 · 双击聚焦</div>
+        <div class="map-legend"><span><i class="light neutral"></i><span id="legendNormal">正常</span></span><span><i class="light infected"></i><span id="legendInfected">感染</span></span><span><i class="light shield"></i><span id="legendShield">防御</span></span><span><i class="light focus"></i><span id="legendFocus">选中</span></span></div>
+      </section>
+      <aside>
+        <div class="panel">
+          <h3><span id="statusPanelTitle">战局状态</span> <small id="turnHint"></small></h3>
+          <div id="status"></div>
+          <div id="resources" class="stats"></div>
+        </div>
+        <div class="panel">
+          <h3 id="commandsPanelTitle">战术指令</h3>
+          <label id="nodeLabel" for="node">目标节点</label>
+          <select id="node"></select>
+          <label id="sourceLabel" for="source">来源节点 / 第二节点</label>
+          <select id="source"></select>
+          <div id="actions" class="actions"></div>
+        </div>
+        <div class="panel logs">
+          <h3><span id="logsPanelTitle">战斗日志</span> <small id="logsPanelSmall">REAL-TIME FEED</small></h3>
+          <div id="logs" aria-live="off"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <div id="toast" role="status" class="toast hidden"></div>
+  <script type="module">
+  try {
+    const { HVTBackend } = await import('./js/p2p-room.js');
+    await HVTBackend.start();
+    window.HVTBackend = HVTBackend;
+  } catch(error) {
+    console.error('P2P setup:', error);
+    const note = document.createElement('div');
+    note.className = 'setup-banner';
+    note.textContent = '游戏初始化失败：' + (error?.message || String(error)) + '（查看 README.md）';
+    document.body.prepend(note);
+  }
+  const script = document.createElement('script');
+  script.src = './app.js';
+  document.body.append(script);
+</script>
+</body>
+</html>
