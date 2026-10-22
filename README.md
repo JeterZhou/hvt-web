@@ -31,3 +31,8 @@ npm test
 ```
 
 注意：当前版本的 WebRTC 信令通过复制邀请/答复文本完成。如果要改成“输入房间号直接加入”、公共房间列表或自动交换信令，需要另行增加 CloudBase 信令服务和对应的前端代码；仅部署静态文件不会自动获得这些功能。
+
+
+## v2.1 联机状态修复
+
+参见 [CONNECTION_FIX_DEPLOY.md](./CONNECTION_FIX_DEPLOY.md) 了解 GitHub/CloudBase 更新方法。此修复防止重复 Answer 和错误状态提示；未内置 TURN，校园网等限制直连的网络可能仍然无法建立连接。

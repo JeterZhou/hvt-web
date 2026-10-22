@@ -2,7 +2,7 @@
 
 ## 方案 A：CloudBase 直接托管静态网站（适合当前版本）
 
-1. 解压 `HumanVsTrojan_CloudBase_Static_v2.zip`。确认 `index.html` 直接位于解压目录根部，而不是更深一层子目录。
+1. 解压 `HumanVsTrojan_Static_ConnectionFix_v2_1.zip`。确认 `index.html` 直接位于解压目录根部，而不是更深一层子目录。
 2. 打开腾讯云开发 CloudBase 控制台，进入对应环境的“静态网站托管”。
 3. 选择“新建部署”并上传代码包或文件夹。
 4. 当前项目是纯 HTML/CSS/JavaScript，无需构建：安装命令留空、构建命令留空；如果页面要求填写构建产物目录，填 `.`（当前目录）。
@@ -70,3 +70,7 @@ CLOUDBASE_DEPLOY.md
 本项目当前采用 WebRTC 点对点数据通道。CloudBase 静态托管和 GitHub Pages 都只负责发放网页文件；它们不会自动创建公共房间列表，也不会自动交换 WebRTC 邀请/答复文本。
 
 如果希望玩家只输入房间号就能加入、看到在线房间、自动交换连接信息，则需要额外部署 CloudBase 信令后端（例如云函数/数据库或经过配置的实时频道），并修改 `js/p2p-room.js` 与房间界面。当前这份静态部署包没有假装提供这些功能。
+
+## v2.1 修复版补充
+
+请优先参见 [`CONNECTION_FIX_DEPLOY.md`](./CONNECTION_FIX_DEPLOY.md)。当前已修复重复提交 Answer 与连接状态提示；校园网阻止 WebRTC 直连时仍需可用 TURN 中继或更换网络。

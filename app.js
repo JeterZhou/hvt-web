@@ -56,6 +56,9 @@ const i18n = {
     sourceLabel: '来源节点 / 第二节点', logsPanelTitle: '战斗日志', logsPanelSmall: 'REAL-TIME FEED',
     turnHintAttack: 'ATTACK', turnHintDefense: 'DEFENSE',
     connected: '● 已连接', reconnecting: '● 正在重连',
+    connectionIdle: '● 等待连接', connectionWaitingAnswer: '● 等待答复',
+    connectionConnecting: '● 正在连接', connectionDisconnected: '● 连接中断',
+    connectionFailed: '● 连接失败', connectionClosed: '● 已关闭',
     roomWaitingPlayer: '等待连接...', ready: '✓ 已准备', waitingReady: '等待准备', absent: '未加入',
     readyBtn: '准备就绪', cancelReadyBtn: '取消准备',
     waitingHintPrepare: '连接成功后，点击「准备就绪」，等待另一位玩家。',
@@ -116,6 +119,9 @@ const i18n = {
     sourceLabel: 'Source node / secondary node', logsPanelTitle: 'Battle log', logsPanelSmall: 'REAL-TIME FEED',
     turnHintAttack: 'ATTACK', turnHintDefense: 'DEFENSE',
     connected: '● Connected', reconnecting: '● Reconnecting',
+    connectionIdle: '● Not connected', connectionWaitingAnswer: '● Waiting for answer',
+    connectionConnecting: '● Connecting', connectionDisconnected: '● Connection interrupted',
+    connectionFailed: '● Connection failed', connectionClosed: '● Closed',
     roomWaitingPlayer: 'Waiting for connection...', ready: '✓ Ready', waitingReady: 'Waiting', absent: 'Not joined',
     readyBtn: 'Ready', cancelReadyBtn: 'Cancel ready',
     waitingHintPrepare: 'After connecting, click “Ready” and wait for the other player.',
@@ -158,6 +164,7 @@ let currentLang = localStorage.getItem('hvt_lang') === 'en' ? 'en' : 'zh';
 let room = '', role = '', nickname = '', snap = null, online = false;
 let commandPending = false, announcedGameOver = false;
 let lobbyState = null, readyPending = false, reconnectTimer = null;
+let transportStatus = 'idle', answerSubmitting = false;
 let selected = '', view = { x: 0, y: 0, k: 1 };
 let coords = {}, drag = null, dragging = false;
 let activeFX = [], effectFrame = 0, lastEventId = 0, toastTimer = null, noticeTimer = null;
@@ -262,13 +269,45 @@ function showToast(message, isError = false) {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
 }
 function getNickname() { return $('nickname').value.trim().slice(0, 20) || 'Player'; }
-function setConnection(connected) {
-  online = connected;
+const connectionLabelKeys = {
+  idle: 'connectionIdle', 'waiting-answer': 'connectionWaitingAnswer',
+  connecting: 'connectionConnecting', connected: 'connected',
+  disconnected: 'connectionDisconnected', failed: 'connectionFailed', closed: 'connectionClosed',
+};
+function applyConnectionUI() {
+  const state = online ? 'connected' : transportStatus;
+  const label = tr(connectionLabelKeys[state] || 'connectionIdle');
   for (const el of [$('waitingConnection'), $('connection')]) {
-    el.textContent = connected ? tr('connected') : tr('reconnecting');
-    el.classList.toggle('offline', !connected);
+    el.textContent = label;
+    el.classList.toggle('offline', state === 'failed' || state === 'closed' || state === 'disconnected');
   }
-  if ($('readyBtn') && lobbyState) $('readyBtn').disabled = readyPending || !!lobbyState.started || !connected;
+  if ($('readyBtn') && lobbyState) $('readyBtn').disabled = readyPending || !!lobbyState.started || !online;
+  const answerApplied = HVTBackend?.getConnectionInfo?.().answerApplied === true;
+  $('acceptAnswerBtn').disabled = answerSubmitting || answerApplied ||
+    ['connected', 'disconnected', 'failed', 'closed'].includes(state);
+  if (!online && !$('waiting').classList.contains('hidden')) {
+    const zh = currentLang === 'zh';
+    if (state === 'failed') $('waitingHint').textContent = zh
+      ? '连接失败：无法建立 WebRTC 网络通道。请双方返回首页重新生成邀请；校园网受限时可尝试手机热点。重复点击旧答复无效。'
+      : 'Connection failed: no usable WebRTC route. Both players must restart with a new invitation. Try another network; reapplying the old answer will not help.';
+    else if (state === 'disconnected' || state === 'closed') $('waitingHint').textContent = zh
+      ? '连接已中断。如未自动恢复，请双方返回首页，用全新的邀请和答复重新连接。'
+      : 'Connection interrupted. If it does not recover, both players should restart with a new invitation and answer.';
+    else if (state === 'waiting-answer') $('waitingHint').textContent = zh
+      ? '等待朋友返回答复。粘贴完整答复后点击一次「应用答复并连接」。'
+      : 'Waiting for your friend’s answer. Paste it and click Apply once.';
+    else if (state === 'connecting') $('waitingHint').textContent = zh
+      ? '正在建立 WebRTC 连接，请不要重复提交答复。'
+      : 'Establishing WebRTC connection. Do not submit the answer again.';
+  }
+}
+function setConnection(connected) {
+  online = !!connected;
+  applyConnectionUI();
+}
+function setConnectionStatus(status) {
+  transportStatus = status;
+  applyConnectionUI();
 }
 function showPage(page) {
   for (const id of ['landing', 'waiting', 'game']) $(id).classList.toggle('hidden', id !== page);
@@ -332,6 +371,7 @@ function applyLobby(state) {
   $('waitingHint').textContent = !me?.ready ? tr('waitingHintPrepare') :
     (state.players[otherRole].ready ? tr('waitingHintStarting') : tr('waitingHintPeer'));
   if (state.started && room === state.room) showPage('game');
+  applyConnectionUI();
 }
 async function toggleReady() {
   if (!lobbyState || readyPending || lobbyState.started) return;
@@ -352,6 +392,7 @@ async function leaveLobby() {
   room = ''; role = ''; snap = null; lobbyState = null;
   sessionStorage.removeItem('hvt_player');
   await HVTBackend.leave();
+  transportStatus = 'idle'; online = false;
   activeFX = []; lastEventId = 0;
   showPage('landing');
   refreshRooms();
@@ -373,13 +414,16 @@ async function copyRoom() {
   catch (_) { showToast(tr('roomCopyManual'), true); }
 }
 async function acceptPeerAnswer() {
-  const button = $('acceptAnswerBtn'); button.disabled = true;
+  if (answerSubmitting) return;
+  answerSubmitting = true;
+  applyConnectionUI();
   try {
-    await HVTBackend.acceptAnswer($('answerInput').value);
-    $('waitingHint').textContent = currentLang === 'zh' ? '答复已应用，正在建立直连。请等待连接状态变为「已连接」。' : 'Answer applied. Establishing a direct connection; wait for Connected status.';
-    showToast(currentLang === 'zh' ? '答复已应用，正在连接朋友。' : 'Answer applied. Connecting to your friend.');
+    const applied = await HVTBackend.acceptAnswer($('answerInput').value);
+    showToast(currentLang === 'zh'
+      ? (applied ? '答复已应用，正在连接朋友。' : '此答复已经应用过，请勿重复提交。')
+      : (applied ? 'Answer applied. Connecting to your friend.' : 'This answer has already been applied.'));
   } catch (err) { showToast(err.message, true); }
-  finally { button.disabled = false; }
+  finally { answerSubmitting = false; applyConnectionUI(); }
 }
 async function refreshRooms() {
   // No server-side room directory exists in GitHub Pages-only P2P mode.
@@ -392,7 +436,8 @@ function connect() {
   HVTBackend.listen(
     data => applyLobby(data),
     (state, effects) => { render(state); if (lobbyState?.started && Array.isArray(effects)) receiveEffects(effects); },
-    connected => setConnection(connected)
+    connected => setConnection(connected),
+    status => setConnectionStatus(status)
   );
 }
 async function cmd(command, params = {}) {

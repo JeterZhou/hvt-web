@@ -28,6 +28,9 @@ let offerText = '';
 let answerText = '';
 let incomingOffer = '';
 let connected = false;
+let connectionStatus = 'idle';
+let answerApplied = false;
+let acceptingAnswer = null;
 let callbackSet = null;
 let requestSerial = 0;
 const pendingRequests = new Map();
@@ -47,8 +50,29 @@ const parseDescription = (text, expectedType) => {
 };
 
 function emitOnline(value) {
-  connected = !!value;
+  const next = !!value;
+  if (connected === next) return;
+  connected = next;
   callbackSet?.onOnline?.(connected);
+}
+function emitConnectionStatus(status) {
+  if (connectionStatus === status) return;
+  connectionStatus = status;
+  callbackSet?.onConnectionStatus?.(status);
+}
+function updateConnectionState(connection = pc) {
+  // Ignore late callbacks from a connection that has already been replaced.
+  if (!connection || connection !== pc) return;
+  const isOpen = channel?.readyState === 'open';
+  const isConnected = connection.connectionState === 'connected' && isOpen;
+  emitOnline(isConnected);
+  let state;
+  if (isConnected) state = 'connected';
+  else if (connection.connectionState === 'failed' || connection.iceConnectionState === 'failed') state = 'failed';
+  else if (connection.connectionState === 'closed' || connection.iceConnectionState === 'closed' || channel?.readyState === 'closed') state = 'closed';
+  else if (connection.connectionState === 'disconnected' || connection.iceConnectionState === 'disconnected') state = 'disconnected';
+  else state = host && !answerApplied ? 'waiting-answer' : 'connecting';
+  emitConnectionStatus(state);
 }
 function lobbyState() {
   return {
@@ -179,28 +203,28 @@ function handleMessage(message) {
 }
 function setDataChannel(ch) {
   channel = ch;
-  channel.onopen = () => {
-    emitOnline(true);
+  ch.onopen = () => {
+    if (ch !== channel) return;
+    updateConnectionState();
     send({ type: 'hello', role, nickname: myName, room });
     if (host) sendLobby();
   };
-  channel.onclose = () => emitOnline(false);
-  channel.onerror = () => emitOnline(false);
-  channel.onmessage = event => {
+  ch.onclose = () => { if (ch === channel) updateConnectionState(); };
+  ch.onerror = error => {
+    console.warn('P2P DataChannel error:', error);
+    if (ch === channel) updateConnectionState();
+  };
+  ch.onmessage = event => {
+    if (ch !== channel) return;
     try { handleMessage(JSON.parse(event.data)); }
     catch (error) { console.warn('Ignoring invalid P2P message:', error); }
   };
 }
 function setPeerConnection(next) {
   pc = next;
-  pc.onconnectionstatechange = () => {
-    const state = pc?.connectionState;
-    emitOnline(state === 'connected' && channel?.readyState === 'open');
-    if (state === 'failed' || state === 'closed') emitOnline(false);
-  };
-  pc.oniceconnectionstatechange = () => {
-    if (pc?.iceConnectionState === 'failed' || pc?.iceConnectionState === 'closed') emitOnline(false);
-  };
+  next.onconnectionstatechange = () => updateConnectionState(next);
+  next.oniceconnectionstatechange = () => updateConnectionState(next);
+  updateConnectionState(next);
 }
 function waitForIceGathering(connection) {
   if (connection.iceGatheringState === 'complete') return Promise.resolve();
@@ -221,12 +245,16 @@ function waitForIceGathering(connection) {
 function resetConnection() {
   for (const request of pendingRequests.values()) request.reject(Error('连接已关闭。'));
   pendingRequests.clear();
-  try { channel?.close(); } catch {}
-  try { pc?.close(); } catch {}
+  const oldChannel = channel;
+  const oldConnection = pc;
   pc = null; channel = null; engine = null; started = false;
   ready = { attacker: false, defender: false };
   offerText = ''; answerText = ''; incomingOffer = '';
-  peerName = ''; connected = false; callbackSet = null; processing = Promise.resolve();
+  peerName = ''; connected = false; connectionStatus = 'idle';
+  answerApplied = false; acceptingAnswer = null;
+  callbackSet = null; processing = Promise.resolve();
+  try { oldChannel?.close(); } catch {}
+  try { oldConnection?.close(); } catch {}
 }
 
 async function start() {
@@ -244,6 +272,7 @@ async function createRoom(name) {
   await connection.setLocalDescription(offer);
   await waitForIceGathering(connection);
   offerText = JSON.stringify(connection.localDescription);
+  updateConnectionState(connection);
   ready.attacker = false;
   return lobbyState();
 }
@@ -261,15 +290,30 @@ async function joinRoom(offer, side, name) {
   await connection.setLocalDescription(answer);
   await waitForIceGathering(connection);
   answerText = JSON.stringify(connection.localDescription);
+  updateConnectionState(connection);
   return lobbyState();
 }
 async function acceptAnswer(answer) {
   if (!host || !pc) throw Error('当前页面不是等待答复的房主页面。');
+  if (answerApplied) return false; // Idempotent: never apply a second Answer to stable state.
+  if (acceptingAnswer) return acceptingAnswer;
+  if (pc.signalingState !== 'have-local-offer') {
+    throw Error('当前连接不在等待答复状态。请双方返回首页，重新生成一套邀请与答复。');
+  }
   const description = parseDescription(answer, 'answer');
-  await pc.setRemoteDescription(description);
-  return true;
+  const connection = pc;
+  acceptingAnswer = (async () => {
+    await connection.setRemoteDescription(description);
+    if (connection !== pc) throw Error('连接已重置，请重新创建邀请。');
+    answerApplied = true;
+    updateConnectionState(connection);
+    return true;
+  })();
+  try { return await acceptingAnswer; }
+  finally { acceptingAnswer = null; }
 }
 function getSignalInfo() { return { offer: offerText, answer: answerText, role, room }; }
+function getConnectionInfo() { return { status: connectionStatus, connected, answerApplied }; }
 async function resume() { throw Error('WebRTC 直连不能在刷新页面后自动恢复，请重新创建邀请并建立连接。'); }
 function getLobby() { return lobbyState(); }
 async function toggleReady(next) {
@@ -288,10 +332,11 @@ async function toggleReady(next) {
 async function leave() {
   resetConnection(); room = ''; role = ''; host = false; myName = 'Player';
 }
-function listen(onLobby, onView, onOnline) {
-  callbackSet = { onLobby, onView, onOnline };
+function listen(onLobby, onView, onOnline, onConnectionStatus) {
+  callbackSet = { onLobby, onView, onOnline, onConnectionStatus };
   emitLobby();
-  emitOnline(connected && channel?.readyState === 'open');
+  callbackSet?.onOnline?.(connected && channel?.readyState === 'open');
+  callbackSet?.onConnectionStatus?.(connectionStatus);
   if (channel?.readyState === 'open') {
     send({ type: 'hello', role, nickname: myName, room });
     if (host) sendLobby();
@@ -323,4 +368,4 @@ async function sendCommand(command, params = {}) {
   });
 }
 
-export const HVTBackend = { start, createRoom, joinRoom, resume, getLobby, toggleReady, leave, listen, sendCommand, acceptAnswer, getSignalInfo };
+export const HVTBackend = { start, createRoom, joinRoom, resume, getLobby, toggleReady, leave, listen, sendCommand, acceptAnswer, getSignalInfo, getConnectionInfo };
