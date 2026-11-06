@@ -84,6 +84,16 @@ npm test
 
 **安全提示：** 仅将公开 CloudBase 环境标识和必要的可公开配置放入前端代码。**切勿**向 GitHub 提交 SecretId、SecretKey、管理员凭据、私钥或其他服务器端密钥。
 
+### 未来的升级版本
+
+当前版本（v3.1）采用房主单端执行游戏逻辑、客机发送指令并等待服务端转发的架构，客机执行技能与交互时存在明显延迟，操作流畅度受限。
+
+规划下一版本 **HVT v3.2 · Turn-Based Sync**，目标改造为回合制同步架构：双方独立本地运行游戏引擎，技能与操作在本地即时执行，不再等待云端响应；仅在回合关键节点提交操作日志、状态校验信息，完成跨端同步。
+
+该方案依托现有引擎的确定性随机数与分角色快照信息隔离机制，保证双方对局状态一致、隐藏对局信息不泄露；配套提交编号、状态哈希、ACK 确认、重试与断线恢复能力，规避重复执行、数据不一致问题。同时优化云端通信机制，减少无意义轮询，大幅降低 CloudBase 云函数调用与数据库读写频次。
+
+开发将采用增量改造思路，保留稳定可用的 v3.1 版本，分阶段完成架构分析、同步协议实现、跨设备网络异常测试、性能与资源消耗对比验证，确认稳定可用后再正式启用这套双端本地计算、回合提交同步的联机架构。
+
 ---
 
 ## English
@@ -139,3 +149,13 @@ Run `npm test` with Node.js 20+. In the current package, **all 23 automated test
 This is a **Beta Release Candidate**, not a guaranteed production release. The host browser remains authoritative for the match, refreshing a page does not seamlessly restore a room session, and automatic-room polling incurs latency and cloud usage. Validate real-device connectivity, quotas, room cleanup, and rate limits before a wider launch.
 
 **Security:** Commit public identifiers only. Never commit Tencent Cloud SecretId/SecretKey, administrative credentials, private keys, or other server-side secrets to this public repository.
+
+### Future Version Upgrade
+
+The current release (v3.1) runs game logic entirely on the host. Clients send commands and wait for relay through the cloud, which introduces noticeable latency for skill casts and interactions and hurts responsiveness.
+
+The planned next milestone, **HVT v3.2 · Turn-Based Sync**, will shift to a turn-based synchronization architecture. Both players will run the game engine locally: skills and actions execute instantly on the local device without waiting for cloud replies. Game state synchronization only happens at critical turn boundaries.
+
+Built upon the existing deterministic random generator and role-based snapshot isolation, this design guarantees consistent simulation on both sides while preserving hidden information. It introduces commit IDs, state hashes, ACK handshakes, retry logic and reconnection recovery to prevent duplicate action execution and state desync. Cloud communication will also be reworked to eliminate unnecessary polling, cutting down CloudBase function invocations and database traffic.
+
+This will be implemented incrementally without breaking the stable v3.1 branch. Development will proceed in phases: architecture audit, sync protocol implementation, cross-device stress tests including network failure scenarios, and benchmarking against the current version. The new dual-local simulation + turn-commit networking stack will only be adopted after validation.
