@@ -1,9 +1,6 @@
-/*
- * GitHub Pages-only multiplayer transport.
- * Host (attacker) is authoritative; peer connection is established by manually
- * exchanging WebRTC offer/answer text. No Firebase, API key, or custom server.
- */
+/* WebRTC transport: CloudBase auto-room signaling, with manual SDP fallback. */
 import { HVTGame } from './game-engine.js';
+import { OnlineSignal } from './online-signal.js';
 
 const RTC_CONFIG = {
   iceServers: [
@@ -35,6 +32,13 @@ let callbackSet = null;
 let requestSerial = 0;
 const pendingRequests = new Map();
 let processing = Promise.resolve();
+let mode = 'manual';
+let roomAuth = null;
+let pollTimer = null;
+let generation = 0;
+let connectionPath = 'unknown';
+const AUTO_POLL_MS = 2800;
+
 
 const cleanName = value => String(value || 'Player').trim().slice(0, 20) || 'Player';
 const randomCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)))
@@ -66,6 +70,8 @@ function updateConnectionState(connection = pc) {
   const isOpen = channel?.readyState === 'open';
   const isConnected = connection.connectionState === 'connected' && isOpen;
   emitOnline(isConnected);
+  if (isConnected && connectionPath === 'unknown') void detectConnectionPath(connection);
+
   let state;
   if (isConnected) state = 'connected';
   else if (connection.connectionState === 'failed' || connection.iceConnectionState === 'failed') state = 'failed';
@@ -73,6 +79,54 @@ function updateConnectionState(connection = pc) {
   else if (connection.connectionState === 'disconnected' || connection.iceConnectionState === 'disconnected') state = 'disconnected';
   else state = host && !answerApplied ? 'waiting-answer' : 'connecting';
   emitConnectionStatus(state);
+}
+async function detectConnectionPath(connection) {
+  try {
+    if (!connection?.getStats) return;
+    const reports = await connection.getStats();
+    if (connection !== pc) return;
+    let selected;
+    for (const report of reports.values()) {
+      if (report.type === 'transport' && report.selectedCandidatePairId) {
+        selected = reports.get(report.selectedCandidatePairId);
+        break;
+      }
+    }
+    if (!selected) {
+      for (const report of reports.values()) {
+        if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+          selected = report; break;
+        }
+      }
+    }
+    const candidate = selected && reports.get(selected.localCandidateId);
+    connectionPath = candidate?.candidateType === 'relay' ? 'turn-relay'
+      : candidate ? 'direct' : 'unknown';
+    callbackSet?.onConnectionStatus?.(connectionStatus);
+  } catch (error) { console.warn('Candidate path inspection failed:', error); }
+}
+function schedulePoll(sequence) {
+  if (sequence !== generation || mode !== 'auto' || !roomAuth) return;
+  pollTimer = setTimeout(async () => {
+    try {
+      const result = await OnlineSignal.call('poll', { code: roomAuth.code, token: roomAuth.token });
+      if (sequence !== generation) return;
+      if (result.status === 'closed') throw Error('房间已关闭');
+      if (host && result.answer && !answerApplied && pc?.signalingState === 'have-local-offer') {
+        await acceptAnswer(JSON.stringify(result.answer));
+      }
+    } catch (error) {
+      if (sequence !== generation) return;
+      // Network errors are transient: retry; explicit expiry/closure requires a new room.
+      if (/关闭|过期|没有找到|无权/.test(String(error?.message))) {
+        emitOnline(false); emitConnectionStatus('failed');
+        console.warn('Room expired:', error);
+        return;
+      }
+      console.warn('Signaling poll retry:', error);
+    }
+    schedulePoll(sequence);
+  }, AUTO_POLL_MS);
 }
 function lobbyState() {
   return {
@@ -243,6 +297,7 @@ function waitForIceGathering(connection) {
   });
 }
 function resetConnection() {
+  generation++; clearTimeout(pollTimer); pollTimer = null; roomAuth = null; mode = 'manual'; connectionPath = 'unknown';
   for (const request of pendingRequests.values()) request.reject(Error('连接已关闭。'));
   pendingRequests.clear();
   const oldChannel = channel;
@@ -261,6 +316,68 @@ async function start() {
   if (!('RTCPeerConnection' in window)) throw Error('此浏览器不支持 WebRTC，请使用较新的 Chrome、Edge、Firefox 或 Safari。');
   gameMap = await (await fetch(new URL('./seed43-map.json', import.meta.url))).json();
   return true;
+}
+async function createAutoRoom(name) {
+  if (!OnlineSignal.enabled()) throw Error('自动房间尚未配置 CloudBase 环境。');
+  resetConnection();
+  mode = 'auto'; role = 'attacker'; host = true; myName = cleanName(name);
+  const sequence = generation;
+  let record;
+  try {
+    record = await OnlineSignal.call('open', { name: myName });
+    if (sequence !== generation) throw Error('房间创建已取消。');
+    room = record.code; roomAuth = { code: record.code, token: record.token };
+    const connection = new RTCPeerConnection(record.ice);
+    setPeerConnection(connection);
+    setDataChannel(connection.createDataChannel('hvt-game', { ordered: true }));
+    await connection.setLocalDescription(await connection.createOffer());
+    await waitForIceGathering(connection);
+    if (sequence !== generation) throw Error('房间创建已取消。');
+    offerText = JSON.stringify(connection.localDescription);
+    await OnlineSignal.call('offer', { code: room, token: record.token, description: connection.localDescription });
+    if (sequence !== generation) throw Error('房间创建已取消。');
+    updateConnectionState(connection);
+    schedulePoll(sequence);
+    return lobbyState();
+  } catch (error) {
+    if (record?.token) void OnlineSignal.call('leave', { code: record.code, token: record.token }).catch(() => {});
+    resetConnection(); throw error;
+  }
+}
+async function joinAutoRoom(code, side, name) {
+  if (side !== 'defender') throw Error('房主为攻击方，加入者为防守方。');
+  resetConnection();
+  mode = 'auto'; role = 'defender'; host = false; myName = cleanName(name);
+  const sequence = generation;
+  let record;
+  try {
+    record = await OnlineSignal.call('join', { code: String(code).trim().toUpperCase(), name: myName });
+    if (sequence !== generation) throw Error('加入房间已取消。');
+    room = record.code; roomAuth = { code: record.code, token: record.token };
+    const connection = new RTCPeerConnection(record.ice);
+    setPeerConnection(connection);
+    connection.ondatachannel = event => setDataChannel(event.channel);
+    incomingOffer = JSON.stringify(record.offer);
+    await connection.setRemoteDescription(record.offer);
+    await connection.setLocalDescription(await connection.createAnswer());
+    await waitForIceGathering(connection);
+    if (sequence !== generation) throw Error('加入房间已取消。');
+    answerText = JSON.stringify(connection.localDescription);
+    await OnlineSignal.call('answer', { code: room, token: record.token, description: connection.localDescription });
+    if (sequence !== generation) throw Error('加入房间已取消。');
+    updateConnectionState(connection);
+    schedulePoll(sequence);
+    return lobbyState();
+  } catch (error) {
+    if (record?.token) void OnlineSignal.call('leave', { code: record.code, token: record.token }).catch(() => {});
+    resetConnection(); throw error;
+  }
+}
+function isAutoEnabled() { return OnlineSignal.enabled(); }
+async function listRooms() {
+  if (!OnlineSignal.enabled()) return [];
+  const result = await OnlineSignal.call('list');
+  return Array.isArray(result.rooms) ? result.rooms : [];
 }
 async function createRoom(name) {
   resetConnection();
@@ -313,7 +430,7 @@ async function acceptAnswer(answer) {
   finally { acceptingAnswer = null; }
 }
 function getSignalInfo() { return { offer: offerText, answer: answerText, role, room }; }
-function getConnectionInfo() { return { status: connectionStatus, connected, answerApplied }; }
+function getConnectionInfo() { return { status: connectionStatus, connected, answerApplied, mode, path: connectionPath }; }
 async function resume() { throw Error('WebRTC 直连不能在刷新页面后自动恢复，请重新创建邀请并建立连接。'); }
 function getLobby() { return lobbyState(); }
 async function toggleReady(next) {
@@ -330,6 +447,8 @@ async function toggleReady(next) {
   return lobbyState();
 }
 async function leave() {
+  const auth = roomAuth;
+  if (auth) await OnlineSignal.call('leave', auth).catch(error => console.warn('Failed to close room:', error));
   resetConnection(); room = ''; role = ''; host = false; myName = 'Player';
 }
 function listen(onLobby, onView, onOnline, onConnectionStatus) {
@@ -368,4 +487,4 @@ async function sendCommand(command, params = {}) {
   });
 }
 
-export const HVTBackend = { start, createRoom, joinRoom, resume, getLobby, toggleReady, leave, listen, sendCommand, acceptAnswer, getSignalInfo, getConnectionInfo };
+export const HVTBackend = { start, createRoom, joinRoom, createAutoRoom, joinAutoRoom, listRooms, isAutoEnabled, resume, getLobby, toggleReady, leave, listen, sendCommand, acceptAnswer, getSignalInfo, getConnectionInfo };

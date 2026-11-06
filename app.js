@@ -165,6 +165,7 @@ let room = '', role = '', nickname = '', snap = null, online = false;
 let commandPending = false, announcedGameOver = false;
 let lobbyState = null, readyPending = false, reconnectTimer = null;
 let transportStatus = 'idle', answerSubmitting = false;
+let roomRefreshTimer = null;
 let selected = '', view = { x: 0, y: 0, k: 1 };
 let coords = {}, drag = null, dragging = false;
 let activeFX = [], effectFrame = 0, lastEventId = 0, toastTimer = null, noticeTimer = null;
@@ -211,17 +212,20 @@ function applyLanguage() {
   $('nicknameLabel').textContent = tr('nicknameLabel');
   $('nickname').placeholder = tr('nicknamePlaceholder');
   $('createBtn').textContent = tr('createBtn');
-  $('separatorText').textContent = tr('separatorText');
-  $('roomInputLabel').textContent = tr('roomInputLabel');
-  $('roomInput').placeholder = tr('roomInputPlaceholder');
+  $('separatorText').textContent = usingAuto() ? (currentLang === 'zh' ? '或者从房间列表加入' : 'or select an open room') : tr('separatorText');
+  $('connectionModeLabel').textContent = currentLang === 'zh' ? '联机方式' : 'Connection mode';
+  $('connectionMode').querySelector('option[value=auto]').textContent = currentLang === 'zh' ? '自动房间（CloudBase）' : 'Auto room (CloudBase)';
+  $('connectionMode').querySelector('option[value=manual]').textContent = currentLang === 'zh' ? '手动邀请（备用）' : 'Manual offer/answer (fallback)';
+  $('roomInputLabel').textContent = usingAuto() ? (currentLang === 'zh' ? '房间号（也可直接点击下方列表）' : 'Room code (or select below)') : tr('roomInputLabel');
+  $('roomInput').placeholder = usingAuto() ? (currentLang === 'zh' ? '输入 10 位房间号，或从下方列表选择' : 'Enter 10-character room code or select below') : tr('roomInputPlaceholder');
   $('roleInput').options[0].text = tr('role_defender');
   $('roleInput').options[1].text = currentLang === 'zh' ? '攻击方（房主专用）' : 'Attacker (host only)';
-  $('joinBtn').textContent = tr('joinBtn');
-  $('landingHint').textContent = tr('landingHint');
-  $('roomListHead').textContent = tr('roomListHead');
+  $('joinBtn').textContent = usingAuto() ? (currentLang === 'zh' ? '加入房间' : 'Join room') : tr('joinBtn');
+  $('landingHint').textContent = usingAuto() ? (currentLang === 'zh' ? '自动房间：创建后会出现在下方列表，朋友点击加入即可；游戏数据通过 CloudBase 云函数转发，无需 WebRTC 或 TURN。' : 'Auto rooms: create a room, and your friend selects it from the list. CloudBase relays game actions; WebRTC and TURN are not required.') : tr('landingHint');
+  $('roomListHead').textContent = usingAuto() ? (currentLang === 'zh' ? '可加入的公开房间' : 'Open public rooms') : tr('roomListHead');
   if (!$('lobby').children.length) $('lobby').textContent = tr('lobbyLoading');
   $('waitingTitle').textContent = tr('waitingTitle');
-  $('waitingSubtitle').textContent = tr('waitingSubtitle');
+  $('waitingSubtitle').textContent = currentMode() === 'auto' ? (currentLang === 'zh' ? '请朋友打开同一个网站，从公开房间列表点击加入；双方连接后点击准备。' : 'Ask your friend to open the same website and join from the public room list. Ready up after connecting.') : tr('waitingSubtitle');
   $('roomCodeLabel').textContent = tr('roomCodeLabel');
   $('hostSignalHelp').textContent = tr('hostSignalHelp');
   $('guestSignalHelp').textContent = tr('guestSignalHelp');
@@ -229,7 +233,7 @@ function applyLanguage() {
   document.querySelector('label[for=answerInput]').textContent = tr('answerInputLabel');
   document.querySelector('label[for=answerOutput]').textContent = tr('answerOutputLabel');
   $('acceptAnswerBtn').textContent = tr('acceptAnswerBtn');
-  $('copyRoomBtn').innerHTML = `${tr('copyRoomBtn').replace(' ⧉','')} <icon-copy>⧉</icon-copy>`;
+  $('copyRoomBtn').innerHTML = currentMode() === 'auto' ? (currentLang === 'zh' ? '复制房间号 ⧉' : 'Copy room code ⧉') : `${tr('copyRoomBtn').replace(' ⧉','')} <icon-copy>⧉</icon-copy>`;
   if (room && HVTBackend?.getSignalInfo) updateSignalPanel();
   $('attackerRoleLabel').textContent = tr('attackerRoleLabel');
   $('defenderRoleLabel').textContent = tr('defenderRoleLabel');
@@ -269,6 +273,20 @@ function showToast(message, isError = false) {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
 }
 function getNickname() { return $('nickname').value.trim().slice(0, 20) || 'Player'; }
+function usingAuto() { return $('connectionMode')?.value === 'auto' && !!HVTBackend?.isAutoEnabled?.(); }
+function currentMode() { return HVTBackend?.getConnectionInfo?.().mode || 'manual'; }
+function applyModeUI() {
+  if (!$('connectionMode')) return;
+  $('connectionMode').querySelector('option[value="auto"]').disabled = !HVTBackend?.isAutoEnabled?.();
+  if (!HVTBackend?.isAutoEnabled?.()) $('connectionMode').value = 'manual';
+  const auto = usingAuto();
+  $('roomInput').rows = auto ? 1 : 4;
+  $('roomInput').maxLength = auto ? 10 : 30000;
+  $('roomInput').classList.toggle('auto-code', auto);
+  $('roomInput').value = '';
+  applyLanguage();
+}
+
 const connectionLabelKeys = {
   idle: 'connectionIdle', 'waiting-answer': 'connectionWaitingAnswer',
   connecting: 'connectionConnecting', connected: 'connected',
@@ -276,7 +294,14 @@ const connectionLabelKeys = {
 };
 function applyConnectionUI() {
   const state = online ? 'connected' : transportStatus;
-  const label = tr(connectionLabelKeys[state] || 'connectionIdle');
+  const route = HVTBackend?.getConnectionInfo?.().path;
+  const routeSuffix = state === 'connected' && route === 'turn-relay'
+    ? (currentLang === 'zh' ? ' · TURN 中继' : ' · TURN relay')
+    : state === 'connected' && route === 'direct'
+      ? (currentLang === 'zh' ? ' · P2P 直连' : ' · P2P direct')
+      : state === 'connected' && route === 'cloudbase-relay'
+        ? (currentLang === 'zh' ? ' · CloudBase 中转' : ' · CloudBase relay') : '';
+  const label = tr(connectionLabelKeys[state] || 'connectionIdle') + routeSuffix;
   for (const el of [$('waitingConnection'), $('connection')]) {
     el.textContent = label;
     el.classList.toggle('offline', state === 'failed' || state === 'closed' || state === 'disconnected');
@@ -287,18 +312,22 @@ function applyConnectionUI() {
     ['connected', 'disconnected', 'failed', 'closed'].includes(state);
   if (!online && !$('waiting').classList.contains('hidden')) {
     const zh = currentLang === 'zh';
-    if (state === 'failed') $('waitingHint').textContent = zh
+    if (state === 'failed' && currentMode() === 'auto') $('waitingHint').textContent = zh
+      ? '连接失败。请检查 CloudBase 登录、函数权限或网络；可稍后重试。'
+      : 'Connection failed. Check CloudBase authentication, function permissions, and connectivity.';
+    else if (state === 'failed') $('waitingHint').textContent = zh
       ? '连接失败：无法建立 WebRTC 网络通道。请双方返回首页重新生成邀请；校园网受限时可尝试手机热点。重复点击旧答复无效。'
       : 'Connection failed: no usable WebRTC route. Both players must restart with a new invitation. Try another network; reapplying the old answer will not help.';
     else if (state === 'disconnected' || state === 'closed') $('waitingHint').textContent = zh
       ? '连接已中断。如未自动恢复，请双方返回首页，用全新的邀请和答复重新连接。'
       : 'Connection interrupted. If it does not recover, both players should restart with a new invitation and answer.';
+    else if (state === 'waiting-answer' && currentMode() === 'auto') $('waitingHint').textContent = zh ? '房间已创建，等待另一位玩家从房间列表加入。' : 'Room created. Waiting for another player to join from the public list.';
     else if (state === 'waiting-answer') $('waitingHint').textContent = zh
       ? '等待朋友返回答复。粘贴完整答复后点击一次「应用答复并连接」。'
       : 'Waiting for your friend’s answer. Paste it and click Apply once.';
     else if (state === 'connecting') $('waitingHint').textContent = zh
-      ? '正在建立 WebRTC 连接，请不要重复提交答复。'
-      : 'Establishing WebRTC connection. Do not submit the answer again.';
+      ? (currentMode() === 'auto' ? '正在连接 CloudBase 房间，请稍候。' : '正在建立 WebRTC 连接，请不要重复提交答复。')
+      : (currentMode() === 'auto' ? 'Connecting to CloudBase room...' : 'Establishing WebRTC connection. Do not submit the answer again.');
   }
 }
 function setConnection(connected) {
@@ -325,7 +354,7 @@ async function createRoom() {
   const b = $('createBtn'); b.disabled = true;
   try {
     nickname = getNickname();
-    const state = await HVTBackend.createRoom(nickname);
+    const state = usingAuto() ? await HVTBackend.createAutoRoom(nickname) : await HVTBackend.createRoom(nickname);
     room = state.room; role = 'attacker';
     await enterLobby(state, false);
   } catch (err) { showToast(err.message, true); }
@@ -337,7 +366,7 @@ async function joinRoom() {
     const invitation = $('roomInput').value.trim();
     if (!invitation) throw new Error(tr('invalidRoomCode'));
     role = $('roleInput').value; nickname = getNickname();
-    const state = await HVTBackend.joinRoom(invitation, role, nickname);
+    const state = usingAuto() ? await HVTBackend.joinAutoRoom(invitation, role, nickname) : await HVTBackend.joinRoom(invitation, role, nickname);
     room = state.room;
     await enterLobby(state, false);
   } catch (err) { showToast(err.message, true); }
@@ -351,7 +380,7 @@ async function enterLobby(state, restored) {
   if (!state.started) showPage('waiting');
   else showPage('game');
   connect();
-  if (!restored) refreshRooms();
+  if (!restored) void refreshRooms();
 }
 function applyLobby(state) {
   lobbyState = state;
@@ -400,15 +429,15 @@ async function leaveLobby() {
 function updateSignalPanel() {
   const signal = HVTBackend?.getSignalInfo?.() || {};
   const isHost = role === 'attacker';
-  $('hostSignalPanel').classList.toggle('hidden', !isHost);
-  $('guestSignalPanel').classList.toggle('hidden', isHost);
+  $('hostSignalPanel').classList.toggle('hidden', currentMode() === 'auto' || !isHost);
+  $('guestSignalPanel').classList.toggle('hidden', currentMode() === 'auto' || isHost);
   $('offerOutput').value = signal.offer || '';
   $('answerOutput').value = signal.answer || '';
-  $('copyRoomBtn').innerHTML = `${currentLang === 'zh' ? (isHost ? '复制邀请文本' : '复制答复文本') : (isHost ? 'Copy invitation' : 'Copy answer')} <icon-copy>⧉</icon-copy>`;
+  $('copyRoomBtn').innerHTML = currentMode() === 'auto' ? (currentLang === 'zh' ? '复制房间号 ⧉' : 'Copy room code ⧉') : `${currentLang === 'zh' ? (isHost ? '复制邀请文本' : '复制答复文本') : (isHost ? 'Copy invitation' : 'Copy answer')} <icon-copy>⧉</icon-copy>`;
 }
 async function copyRoom() {
   const signal = HVTBackend?.getSignalInfo?.() || {};
-  const text = role === 'attacker' ? signal.offer : signal.answer;
+  const text = currentMode() === 'auto' ? room : role === 'attacker' ? signal.offer : signal.answer;
   if (!text) { showToast(tr('roomCopyManual'), true); return; }
   try { await navigator.clipboard.writeText(text); showToast(tr('roomCopied')); }
   catch (_) { showToast(tr('roomCopyManual'), true); }
@@ -426,11 +455,32 @@ async function acceptPeerAnswer() {
   finally { answerSubmitting = false; applyConnectionUI(); }
 }
 async function refreshRooms() {
-  // No server-side room directory exists in GitHub Pages-only P2P mode.
-  $('lobby').textContent = currentLang === 'zh'
-    ? '本版本不使用服务器房间列表。请通过邀请文本和答复文本建立浏览器直连。'
-    : 'No server-side room list is used. Exchange invitation and answer text to establish a direct browser connection.';
+  if (!usingAuto()) {
+    $('lobby').textContent = currentLang === 'zh' ? '备用模式：通过邀请和答复文本建立手动 WebRTC 连接。' : 'Fallback mode: manually exchange WebRTC offer and answer text.';
+    return;
+  }
+  try {
+    const rooms = await HVTBackend.listRooms();
+    const container = $('lobby');
+    container.replaceChildren();
+    if (!rooms.length) {
+      container.textContent = currentLang === 'zh' ? '目前没有可加入的房间，先创建一个吧。' : 'No open rooms yet. Create one to start.';
+      return;
+    }
+    for (const item of rooms) {
+      const row = document.createElement('div'); row.className = 'room-choice';
+      const description = document.createElement('span');
+      description.textContent = `${item.hostName || 'Player'} · ${item.code}`;
+      const join = document.createElement('button'); join.className = 'secondary'; join.type = 'button';
+      join.textContent = currentLang === 'zh' ? '加入' : 'Join';
+      join.addEventListener('click', () => { $('roomInput').value = item.code; void joinRoom(); });
+      row.append(description, join); container.append(row);
+    }
+  } catch (error) {
+    $('lobby').textContent = (currentLang === 'zh' ? '获取房间列表失败：' : 'Failed to list rooms: ') + error.message;
+  }
 }
+
 function connect() {
   if (!room || !window.HVTBackend) return;
   HVTBackend.listen(
@@ -841,14 +891,16 @@ function drawEffects(now) {
 }
 
 $('langToggle').addEventListener('click', () => setLanguage(currentLang === 'zh' ? 'en' : 'zh'));
+$('connectionMode').addEventListener('change', () => { applyModeUI(); void refreshRooms(); });
 
 (async function init() {
-  applyLanguage();
+  if (!HVTBackend?.isAutoEnabled?.()) $('connectionMode').value = 'manual';
+  applyModeUI();
   const code = sessionStorage.getItem('hvt_player');
   if (code) {
     try {
       const saved = JSON.parse(code);
-      if (!/^[A-F0-9]{8}$/.test(saved.room) || !['attacker', 'defender'].includes(saved.role)) throw Error('invalid');
+      if (!/^[A-F0-9]{10}$/.test(saved.room) || !['attacker', 'defender'].includes(saved.role)) throw Error('invalid');
       room = saved.room; role = saved.role; nickname = saved.nickname || 'Player';
       $('nickname').value = nickname;
       const lobby = await HVTBackend.resume(room, role);
@@ -858,6 +910,9 @@ $('langToggle').addEventListener('click', () => setLanguage(currentLang === 'zh'
   }
   showPage('landing');
   await refreshRooms();
+  roomRefreshTimer = setInterval(() => {
+    if (!$('landing').classList.contains('hidden')) void refreshRooms();
+  }, 10000);
 })();
 
 window.acceptPeerAnswer = acceptPeerAnswer;

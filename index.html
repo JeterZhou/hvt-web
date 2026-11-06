@@ -19,6 +19,8 @@
         <input id="nickname" maxlength="20" placeholder="输入玩家昵称" autocomplete="nickname">
         <button id="createBtn" onclick="createRoom()">创建房间（攻击方）</button>
         <div class="separator"><span id="separatorText">或者加入已有房间</span></div>
+        <label for="connectionMode" id="connectionModeLabel">联机方式</label>
+        <select id="connectionMode" aria-label="联机方式"><option value="auto">自动房间（CloudBase）</option><option value="manual">手动邀请（备用）</option></select>
         <label id="roomInputLabel" for="roomInput">房主邀请文本</label>
         <textarea id="roomInput" class="invite-input" maxlength="30000" rows="4" placeholder="粘贴朋友发来的完整邀请文本" autocomplete="off"></textarea>
         <div class="join-row">
@@ -106,11 +108,11 @@
   <div id="toast" role="status" class="toast hidden"></div>
   <script type="module">
   try {
-    const { HVTBackend } = await import('./js/p2p-room.js');
+    const { HVTBackend } = await import('./js/backend-router.js');
     await HVTBackend.start();
     window.HVTBackend = HVTBackend;
   } catch(error) {
-    console.error('P2P setup:', error);
+    console.error('Game setup:', error);
     const note = document.createElement('div');
     note.className = 'setup-banner';
     note.textContent = '游戏初始化失败：' + (error?.message || String(error)) + '（查看 README.md）';

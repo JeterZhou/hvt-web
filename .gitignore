@@ -1,0 +1,16 @@
+# Local dependencies and CloudBase build artifacts
+node_modules/
+.tcb_tmp/
+.vscode/
+
+# Local secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+
+# OS/editor and temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp

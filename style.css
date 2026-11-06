@@ -202,3 +202,11 @@ textarea:focus{outline:2px solid #00d9ff75;outline-offset:2px}
 .signal-panel textarea{margin-bottom:4px;min-height:100px}
 .signal-panel button{width:100%;margin-top:8px}
 @media(max-width:690px){.join-row{grid-template-columns:minmax(0,1fr)}.join-row button{grid-column:auto}.signal-panel{padding:10px}.signal-panel textarea{min-height:90px}}
+
+/* v3 automatic lobby */
+.room-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 4px;border-bottom:1px solid #1c4355}
+.room-choice:last-child{border-bottom:0}
+.room-choice span{overflow-wrap:anywhere}
+.room-choice button{font-size:11px;padding:7px 14px;flex-shrink:0}
+.invite-input.auto-code{min-height:43px;font-size:14px;resize:none}
+#connectionMode{width:100%}
