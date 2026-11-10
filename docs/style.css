@@ -116,6 +116,7 @@ body[data-lang="en"] .lang-zh { display: none !important; }
 }
 
 .hero {
+  --cyan: #8bdfff;
   position: relative;
   isolation: isolate;
   display: flex;
@@ -271,78 +272,75 @@ h1 .trojan { display: inline-block; margin-top: .08em; }
 .below-links a:hover { color: var(--cyan); }
 .site-footer { display: flex; justify-content: space-between; gap: 20px; padding: 22px max(7vw, calc((100vw - 1320px) / 2)); color: #7f8da2; background: #060d19; font-size: 10px; letter-spacing: .08em; }
 
+/* =========================================================
+   LIGHT MODE — SITE CHROME AND CONTENT
+   ========================================================= */
 body[data-theme="light"] {
   color-scheme: light;
-  --paper: #17263d;
-  --muted: #4c607a;
-  --cyan: #087da8;
-  --violet: #5d55d8;
+  --paper: #172a45;
+  --muted: #435b78;
+  --muted-dark: #60758f;
+  --line: rgba(53, 88, 135, .17);
+  --cyan: #147fa4;
+  --violet: #625bdc;
 }
-body[data-theme="light"] .site-header { background: rgba(246, 249, 255, .88); border-color: rgba(22, 42, 72, .14); }
-body[data-theme="light"] .brand { color: #17263d; }
-body[data-theme="light"] .brand-text small { color: #52657e; }
-body[data-theme="light"] .site-nav a { color: #32435d; }
+
+body[data-theme="light"] .site-header {
+  background: rgba(245, 249, 255, .70);
+  border-bottom-color: rgba(43, 74, 114, .14);
+  box-shadow: 0 8px 28px rgba(44, 68, 108, .07);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+body[data-theme="light"] .brand { color: #172a45; }
+body[data-theme="light"] .brand-text small { color: #60758f; }
+
+body[data-theme="light"] .site-nav a {
+  color: #344b68;
+}
 body[data-theme="light"] .site-nav a:hover,
 body[data-theme="light"] .site-nav a:focus-visible,
 body[data-theme="light"] .site-nav a.is-active,
-body[data-theme="light"] .site-nav a[aria-current="page"] { color: #fff; background: #15243d; }
-body[data-theme="light"] .nav-tool,
-body[data-theme="light"] .ghost-btn { color: #20314c; background: rgba(20, 42, 74, .07); border-color: rgba(20, 42, 74, .14); }
-body[data-theme="light"] .hero::before {
-  background:
-    radial-gradient(ellipse at 82% 25%, rgba(245, 174, 220, .28), transparent 36%),
-    radial-gradient(ellipse at 58% 66%, rgba(137, 184, 255, .24), transparent 44%),
-    radial-gradient(ellipse at 18% 84%, rgba(126, 221, 231, .18), transparent 40%),
-    linear-gradient(90deg, rgba(237, 245, 255, .86) 0%, rgba(235, 240, 255, .68) 45%, rgba(228, 235, 252, .44) 100%),
-    linear-gradient(180deg, rgba(244, 239, 255, .16), rgba(214, 228, 250, .32));
-}
-body[data-theme="light"] h1,
-body[data-theme="light"] .hero-kicker { color: #17263d; text-shadow: none; }
-body[data-theme="light"] h1 .versus { color: #087da8; }
-body[data-theme="light"] .eyebrow,
-body[data-theme="light"] .hero-copy,
-body[data-theme="light"] .secondary-action,
-body[data-theme="light"] .hero-bottom-left,
-body[data-theme="light"] .hero-bottom-right { color: #2e435e; }
-body[data-theme="light"] .eyebrow {
-  width: fit-content;
-  max-width: 100%;
-  flex-wrap: wrap;
-  border-color: rgba(39, 72, 112, .16);
-  background: rgba(248, 251, 255, .68);
-}
-body[data-theme="light"] .eyebrow-line { background: #168db4; }
-body[data-theme="light"] .eyebrow-separator { color: rgba(46, 67, 94, .55); }
-body[data-theme="light"] .hero-copy { color: #3c526d; }
-body[data-theme="light"] .primary-action {
+body[data-theme="light"] .site-nav a[aria-current="page"] {
   color: #fff;
-  background: linear-gradient(135deg, #176b9b, #3156a0);
-  box-shadow: 0 12px 30px rgba(27, 74, 128, .22);
-}
-body[data-theme="light"] .primary-action:hover { box-shadow: 0 16px 36px rgba(27, 74, 128, .3); }
-body[data-theme="light"] .secondary-action { color: #28415e; }
-body[data-theme="light"] .secondary-action:hover,
-body[data-theme="light"] .below-links a:hover { color: #087da8; }
-body[data-theme="light"] .hero-bottom-left .bottom-rule,
-body[data-theme="light"] .hero-bottom-right .bottom-rule { background: rgba(20, 42, 74, .5); }
-body[data-theme="light"] .bottom-mark { color: #087da8; }
-body[data-theme="light"] .after-hero {
-  color: #17263d;
-  background: linear-gradient(180deg, #f3f6fb, #eaf0f7);
-  border-color: rgba(39, 72, 112, .12);
-}
-body[data-theme="light"] .section-topline { color: #687b93; }
-body[data-theme="light"] .section-label { color: #087da8; }
-body[data-theme="light"] .after-grid h2 { color: #17263d; }
-body[data-theme="light"] .after-grid h2 em { color: #3156a0; }
-body[data-theme="light"] .after-copy { color: #4c607a; }
-body[data-theme="light"] .below-links { border-color: rgba(39, 72, 112, .16); }
-body[data-theme="light"] .below-links a { color: #28415e; }
-body[data-theme="light"] .site-footer {
-  color: #657990;
-  background: #e8eef6;
+  background: rgba(29, 52, 86, .90);
 }
 
+body[data-theme="light"] .nav-tool,
+body[data-theme="light"] .ghost-btn {
+  color: #263e60;
+  background: rgba(250, 252, 255, .58);
+  border-color: rgba(58, 91, 137, .18);
+  box-shadow: 0 4px 16px rgba(57, 82, 122, .06);
+}
+body[data-theme="light"] .nav-tool:hover,
+body[data-theme="light"] .ghost-btn:hover {
+  background: rgba(255, 255, 255, .88);
+  border-color: rgba(48, 104, 157, .28);
+}
+
+body[data-theme="light"] .below-links a:hover { color: #087fa8; }
+
+body[data-theme="light"] .after-hero {
+  color: #172a45;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(187, 211, 255, .22), transparent 38%),
+    radial-gradient(ellipse at 88% 12%, rgba(237, 207, 236, .15), transparent 32%),
+    linear-gradient(180deg, #f5f8fd 0%, #eaf1fa 100%);
+  border-color: rgba(48, 78, 120, .12);
+}
+body[data-theme="light"] .section-topline { color: #6a7f99; }
+body[data-theme="light"] .section-label { color: #147fa4; }
+body[data-theme="light"] .after-grid h2 { color: #172a45; }
+body[data-theme="light"] .after-grid h2 em { color: #4f61c6; }
+body[data-theme="light"] .after-copy { color: #4b607b; }
+body[data-theme="light"] .below-links { border-color: rgba(48, 78, 120, .15); }
+body[data-theme="light"] .below-links a { color: #304966; }
+body[data-theme="light"] .site-footer {
+  color: #667b95;
+  background: #e8eff8;
+  border-color: rgba(48, 78, 120, .12);
+}
 @keyframes backdrop-drift { from { transform: scale(1.025) translate3d(0, 0, 0); } to { transform: scale(1.075) translate3d(-.6%, .3%, 0); } }
 @media (max-width: 860px) {
   .header-inner { gap: 12px; }
