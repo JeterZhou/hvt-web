@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Human vs Trojan | Rules</title>
+  <link rel="icon" href="../favicon_hvt.jpg" type="image/x-icon">
+  <link rel="stylesheet" href="./site.css">
+</head>
+<body data-lang="zh" data-page="rule" data-title-zh="HVT｜游戏规则" data-title-en="HVT | Game Rules">
+  <header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="./index.html">
+      <span class="brand-mark">HVT</span>
+      <span class="brand-text">
+        Human vs Trojan
+        <small>
+          <span class="lang-zh">双人网络攻防对抗</span>
+          <span class="lang-en">Two-Player Cyber Duel</span>
+        </small>
+      </span>
+    </a>
+
+    <button class="nav-toggle" type="button" data-nav-toggle aria-expanded="false" data-aria-zh="打开导航" data-aria-en="Open navigation">
+      <span class="nav-toggle-bar" aria-hidden="true"></span>
+      <span class="visually-hidden">
+        <span class="lang-zh">导航</span>
+        <span class="lang-en">Navigation</span>
+      </span>
+    </button>
+
+    <div class="nav-wrap" data-nav-wrap>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="./index.html" data-nav-page="home"><span class="lang-zh">首页</span><span class="lang-en">Home</span></a>
+        <a href="./about.html" data-nav-page="about"><span class="lang-zh">背景</span><span class="lang-en">About</span></a>
+        <a href="./rule.html" data-nav-page="rule"><span class="lang-zh">规则</span><span class="lang-en">Rules</span></a>
+        <a href="./game.html" data-nav-page="game"><span class="lang-zh">开始游戏</span><span class="lang-en">Play</span></a>
+      </nav>
+      <div class="toolbar">
+        <button class="lang-switch" type="button" data-lang-toggle>EN</button>
+        <a class="ghost-btn" href="https://github.com/JeterZhou/hvt-web" target="_blank" rel="noopener noreferrer">
+          <span class="lang-zh">GitHub</span>
+          <span class="lang-en">GitHub</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+  <main class="page-shell">
+    <section class="page-hero">
+      <div class="page-hero-card">
+        <div class="eyebrow"><span class="lang-zh">完整规则</span><span class="lang-en">Full Rules</span></div>
+        <h1><span class="lang-zh">读懂回合、资源与<span>胜利条件</span></span><span class="lang-en">Understand the rounds, resources, and <span>victory conditions</span></span></h1>
+        <p class="lead"><span class="lang-zh">以下内容根据当前已部署版本整理，用于帮助玩家快速掌握一局 HVT 的玩法结构。</span><span class="lang-en">The summary below is based on the currently deployed version and is intended to help players understand how a full match works.</span></p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><span class="lang-zh">规则总览</span><span class="lang-en">Rules Overview</span></h2>
+      <div class="rule-grid">
+        <article class="rule-card">
+          <h3><span class="lang-zh">地图与回合</span><span class="lang-en">Map & Rounds</span></h3>
+          <ul class="bullet-list">
+            <li><span class="lang-zh">地图包含 20 个节点，以及它们之间的连接关系。</span><span class="lang-en">The battlefield contains 20 nodes connected as a network graph.</span></li>
+            <li><span class="lang-zh">一局最多 20 回合。</span><span class="lang-en">A match lasts up to 20 rounds.</span></li>
+            <li><span class="lang-zh">攻击者先设定初始感染点，再进入正式回合流程。</span><span class="lang-en">The attacker sets the initial infected node before the round loop begins.</span></li>
+          </ul>
+        </article>
+        <article class="rule-card">
+          <h3><span class="lang-zh">胜利条件</span><span class="lang-en">Victory Conditions</span></h3>
+          <ul class="bullet-list">
+            <li><span class="lang-zh"><strong>攻击方胜利：</strong>active 节点数达到 7 个或以上。</span><span class="lang-en"><strong>Attacker wins:</strong> 7 or more nodes become active.</span></li>
+            <li><span class="lang-zh"><strong>防守方胜利：</strong>所有感染节点被清除。</span><span class="lang-en"><strong>Defender wins:</strong> all infected nodes are removed.</span></li>
+            <li><span class="lang-zh"><strong>时间胜利：</strong>若打满 20 回合仍未被攻陷，则防守方获胜。</span><span class="lang-en"><strong>Time victory:</strong> if round 20 is reached without collapse, the defender wins.</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><span class="lang-zh">节点状态</span><span class="lang-en">Node States</span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><span class="lang-zh">状态</span><span class="lang-en">State</span></th>
+              <th><span class="lang-zh">含义</span><span class="lang-en">Meaning</span></th>
+              <th><span class="lang-zh">说明</span><span class="lang-en">Notes</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>DD</td>
+              <td><span class="lang-zh">普通干净节点</span><span class="lang-en">Normal clean node</span></td>
+              <td><span class="lang-zh">默认安全状态。</span><span class="lang-en">Default safe state.</span></td>
+            </tr>
+            <tr>
+              <td>D</td>
+              <td><span class="lang-zh">加固节点</span><span class="lang-en">Hardened node</span></td>
+              <td><span class="lang-zh">会降低传播成功率，并提高特殊攻击防御。</span><span class="lang-en">Reduces spread success and strengthens defense against special attacks.</span></td>
+            </tr>
+            <tr>
+              <td>H</td>
+              <td><span class="lang-zh">蜜罐节点</span><span class="lang-en">Honeypot node</span></td>
+              <td><span class="lang-zh">帮助防守方获得更多攻击线索；场上最多 3 个蜜罐。</span><span class="lang-en">Helps the defender collect attack clues; at most 3 honeypots can exist.</span></td>
+            </tr>
+            <tr>
+              <td>HD</td>
+              <td><span class="lang-zh">加固蜜罐</span><span class="lang-en">Hardened honeypot</span></td>
+              <td><span class="lang-zh">同时具备加固和蜜罐效果。</span><span class="lang-en">Combines the effects of hardening and honeypot deployment.</span></td>
+            </tr>
+            <tr>
+              <td>lurk</td>
+              <td><span class="lang-zh">潜伏感染</span><span class="lang-en">Lurking infection</span></td>
+              <td><span class="lang-zh">已被感染但尚未全面激活。</span><span class="lang-en">The node is infected but not yet fully activated.</span></td>
+            </tr>
+            <tr>
+              <td>active</td>
+              <td><span class="lang-zh">激活感染</span><span class="lang-en">Active infection</span></td>
+              <td><span class="lang-zh">攻击方的高威胁控制状态，也是主要胜利进度。</span><span class="lang-en">High-threat attacker control state and the main progress toward attacker victory.</span></td>
+            </tr>
+            <tr>
+              <td>abandoned</td>
+              <td><span class="lang-zh">废置节点</span><span class="lang-en">Abandoned node</span></td>
+              <td><span class="lang-zh">被摧毁后暂时退出网络，需要恢复后才能重新使用。</span><span class="lang-en">Removed from normal play after destruction and must be restored before reuse.</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><span class="lang-zh">回合流程</span><span class="lang-en">Round Flow</span></h2>
+      <div class="timeline">
+        <article class="timeline-item">
+          <h3><span class="lang-zh">1. 初始设置</span><span class="lang-en">1. Setup</span></h3>
+          <p><span class="lang-zh">攻击方指定一个初始感染节点，并决定其初始状态为 lurk 或 active。</span><span class="lang-en">The attacker chooses one initial infected node and sets it as either lurk or active.</span></p>
+        </article>
+        <article class="timeline-item">
+          <h3><span class="lang-zh">2. 回合开始与资源结算</span><span class="lang-en">2. Round Start & Resources</span></h3>
+          <p><span class="lang-zh">每回合开始时，攻击方获得人类能量与 AI 能量，防守方获得 budget。感染越多，攻击方获得的能量通常越多。</span><span class="lang-en">At the start of each round, the attacker gains human energy and AI energy while the defender gains budget. Larger infections generally generate more attacker energy.</span></p>
+        </article>
+        <article class="timeline-item">
+          <h3><span class="lang-zh">3. 攻击方 AI 阶段</span><span class="lang-en">3. Attacker AI Phase</span></h3>
+          <p><span class="lang-zh">AI 自动执行常规传播与普通攻击，是攻击方持续施压的主要来源。</span><span class="lang-en">The attacker AI automatically handles routine spreading and normal attacks, creating constant pressure.</span></p>
+        </article>
+        <article class="timeline-item">
+          <h3><span class="lang-zh">4. 攻击方人类阶段</span><span class="lang-en">4. Attacker Human Phase</span></h3>
+          <p><span class="lang-zh">玩家可执行激活、休眠、扫描、特殊攻击与 C2 迁移等关键动作。</span><span class="lang-en">The human attacker performs key actions such as activation, sleep, scanning, special attacks, and C2 migration.</span></p>
+        </article>
+        <article class="timeline-item">
+          <h3><span class="lang-zh">5. 防守方确认蜜罐</span><span class="lang-en">5. Defender Honeypot Prompt</span></h3>
+          <p><span class="lang-zh">防守方可选择是否允许系统预测并预部署一个蜜罐。</span><span class="lang-en">The defender may allow the system to predict and pre-deploy one honeypot.</span></p>
+        </article>
+        <article class="timeline-item">
+          <h3><span class="lang-zh">6. 防守方人类阶段</span><span class="lang-en">6. Defender Human Phase</span></h3>
+          <p><span class="lang-zh">玩家执行扫描、清除、夺回、恢复、流量清洗与反击 C2 等高价值响应动作。</span><span class="lang-en">The defender performs high-value responses: scanning, clearing, recapturing, restoring, traffic cleansing, and C2 counteraction.</span></p>
+        </article>
+        <article class="timeline-item">
+          <h3><span class="lang-zh">7. 防守方 AI 阶段与结算</span><span class="lang-en">7. Defender AI Phase & Resolution</span></h3>
+          <p><span class="lang-zh">防守 AI 会继续补充扫描、加固和防御。随后结算未解决的特殊攻击并检查胜负。</span><span class="lang-en">The defender AI continues scanning, hardening, and response work. Unresolved special attacks are then resolved, followed by victory checks.</span></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><span class="lang-zh">攻击方动作</span><span class="lang-en">Attacker Actions</span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><span class="lang-zh">动作</span><span class="lang-en">Action</span></th>
+              <th><span class="lang-zh">费用</span><span class="lang-en">Cost</span></th>
+              <th><span class="lang-zh">效果</span><span class="lang-en">Effect</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="lang-zh">激活 Activate</span><span class="lang-en">Activate</span></td>
+              <td>6 Energy</td>
+              <td><span class="lang-zh">将一个 lurk 节点转为 active；需要 C2 未被静默。</span><span class="lang-en">Turns one lurk node into active; requires C2 to be operational.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">休眠 Sleep</span><span class="lang-en">Sleep</span></td>
+              <td>1 Energy</td>
+              <td><span class="lang-zh">将一个 active 节点转回 lurk，用于隐藏威胁或保留布局。</span><span class="lang-en">Converts one active node back into lurk to conceal pressure or preserve positioning.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">扫描 Scan</span><span class="lang-en">Scan</span></td>
+              <td>1 Energy</td>
+              <td><span class="lang-zh">从一个已感染源节点向半径 2 内目标扫描，查看其真实状态与连接信息。</span><span class="lang-en">Scans a target within radius 2 from an infected source, revealing its real state and neighborhood information.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">僵尸军团 Zombie</span><span class="lang-en">Zombie Swarm</span></td>
+              <td>8 Energy</td>
+              <td><span class="lang-zh">发动一次特殊攻击。要求当前感染节点数至少达到 4，且整局最多使用 2 次。</span><span class="lang-en">Launches a special attack. Requires at least 4 infected nodes and can only be used twice per match.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">精准打击 Precise</span><span class="lang-en">Precise Strike</span></td>
+              <td>12 Energy</td>
+              <td><span class="lang-zh">使用 active 节点发起高强度特殊攻击，可用于转化目标或直接摧毁节点。</span><span class="lang-en">Uses active nodes for a stronger special attack that can convert or destroy the target.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">C2 迁移 Move C2</span><span class="lang-en">Move C2</span></td>
+              <td>15 Energy</td>
+              <td><span class="lang-zh">清除当前的 C2 静默效果，并让防守方累积的 key 归零。</span><span class="lang-en">Resets current C2 silence and clears the defender’s accumulated key clues.</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="section-intro"><span class="lang-zh">备注：常规传播与普通攻击主要由攻击方 AI 自动处理。近邻传播基础成功率为 60%，远程传播基础成功率为 60% ÷ 距离；加固会进一步降低传播成功率。普通攻击的基础成功率约为 30%，若目标已处于 lurk，则会略有提升。</span><span class="lang-en">Note: routine spreading and normal attacks are mainly handled by the attacker AI. Adjacent spread has a base 60% success rate, long-range spread uses 60% divided by distance, and hardening reduces that chance. Normal attacks start around 30% and gain a small bonus against lurking targets.</span></p>
+    </section>
+
+    <section class="section">
+      <h2><span class="lang-zh">防守方动作</span><span class="lang-en">Defender Actions</span></h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><span class="lang-zh">动作</span><span class="lang-en">Action</span></th>
+              <th><span class="lang-zh">人类阶段费用</span><span class="lang-en">Human Phase Cost</span></th>
+              <th><span class="lang-zh">效果</span><span class="lang-en">Effect</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="lang-zh">加固 Harden</span><span class="lang-en">Harden</span></td>
+              <td>3 Budget</td>
+              <td><span class="lang-zh">把普通节点升级为 D，或把蜜罐升级为 HD。</span><span class="lang-en">Upgrades a normal node to D or upgrades a honeypot to HD.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">扫描 Scan</span><span class="lang-en">Scan</span></td>
+              <td>3 Budget</td>
+              <td><span class="lang-zh">侦测目标是否被感染；若为 lurk 会直接暴露其潜伏状态。</span><span class="lang-en">Checks whether the target is infected and directly reveals lurking infections.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">清除 Clear</span><span class="lang-en">Clear</span></td>
+              <td>6 Budget</td>
+              <td><span class="lang-zh">清除一个已确认且仍为 lurk 的感染节点。</span><span class="lang-en">Removes a node that has been confirmed and is still in the lurk state.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">夺回 Recapture</span><span class="lang-en">Recapture</span></td>
+              <td>6 Budget</td>
+              <td><span class="lang-zh">尝试夺回一个 active 节点，成功率约为 30%。</span><span class="lang-en">Attempts to reclaim an active node with roughly a 30% success rate.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">恢复 Restore</span><span class="lang-en">Restore</span></td>
+              <td>12 Budget</td>
+              <td><span class="lang-zh">把一个 abandoned 节点修复为可重新使用的正常节点。</span><span class="lang-en">Repairs an abandoned node back into normal service.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">反击 C2 Counter C2</span><span class="lang-en">Counter C2</span></td>
+              <td>15 Budget + 3 Key</td>
+              <td><span class="lang-zh">将攻击方 C2 静默 2 回合，迫使对方失去部分关键技能。</span><span class="lang-en">Silences the attacker’s C2 for 2 rounds and blocks several command-driven actions.</span></td>
+            </tr>
+            <tr>
+              <td><span class="lang-zh">流量清洗 Clean</span><span class="lang-en">Traffic Cleanse</span></td>
+              <td>24+ Budget</td>
+              <td><span class="lang-zh">只能在对方已挂起特殊攻击时使用，用额外防御值抵消特殊攻击强度。</span><span class="lang-en">Only usable when a special attack is pending; converts budget into extra defense against that attack.</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="section-intro"><span class="lang-zh">备注：系统也支持 AI 在回合中自动进行扫描、加固、清理和蜜罐部署，因此人类防守阶段更像“昂贵但关键”的干预层。</span><span class="lang-en">Note: the system also lets defender AI continue scanning, hardening, clearing, and honeypot work, so the human defender phase acts as an expensive but decisive intervention layer.</span></p>
+    </section>
+
+    <section class="section">
+      <h2><span class="lang-zh">特殊机制补充</span><span class="lang-en">Additional Mechanics</span></h2>
+      <div class="rule-grid">
+        <article class="rule-card">
+          <h3><span class="lang-zh">蜜罐与 key</span><span class="lang-en">Honeypots & Key</span></h3>
+          <p><span class="lang-zh">攻击方若对蜜罐发起某些成功攻击，防守方会积累 key。累计到 3 点 key 之后，防守方才能发动 Counter C2。</span><span class="lang-en">Successful attacks into honeypots can generate key clues for the defender. Reaching 3 key is required before Counter C2 can be used.</span></p>
+        </article>
+        <article class="rule-card">
+          <h3><span class="lang-zh">C2 静默</span><span class="lang-en">C2 Silence</span></h3>
+          <p><span class="lang-zh">C2 被静默后，攻击方将无法进行激活、休眠、扫描、远程传播和特殊攻击，直到静默结束或完成 C2 迁移。</span><span class="lang-en">While C2 is silenced, the attacker cannot activate, sleep, scan, long-range spread, or use special attacks until the silence expires or C2 is moved.</span></p>
+        </article>
+        <article class="rule-card">
+          <h3><span class="lang-zh">特殊攻击结算</span><span class="lang-en">Special Attack Resolution</span></h3>
+          <p><span class="lang-zh">僵尸军团与精准打击不会立刻生效，而是在防守方阶段结束时结算。参与特殊攻击的 active 节点会进入短暂冷却。</span><span class="lang-en">Zombie Swarm and Precise Strike do not resolve immediately. They are checked at the end of the defender phase, and participating active nodes then enter cooldown.</span></p>
+        </article>
+        <article class="rule-card">
+          <h3><span class="lang-zh">简明策略建议</span><span class="lang-en">Quick Strategy Tips</span></h3>
+          <p><span class="lang-zh">攻击方要平衡“隐藏感染”和“冲击 active 数量”；防守方则要在预算有限的前提下尽快识别高风险节点，并把关键资源留给清除、夺回和 Counter C2。</span><span class="lang-en">Attackers must balance stealthy infection with active pressure, while defenders should identify high-risk nodes quickly and save resources for clear, recapture, and Counter C2 windows.</span></p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>Human vs Trojan · HVT</div>
+      <div><span class="lang-zh">完整规则与行动说明</span><span class="lang-en">Full rules and action reference</span></div>
+      <div>© <span data-year></span> HVT</div>
+    </div>
+  </footer>
+  <script src="./site.js" defer></script>
+</body>
+</html>
