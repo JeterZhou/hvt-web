@@ -6,24 +6,38 @@
   <meta name="theme-color" content="#07101f">
   <meta name="description" content="Human vs Trojan — a two-player cyber strategy duel across a shared network.">
   <title>Human vs Trojan | HVT</title>
-  <link rel="icon" href="../favicon_hvt.jpg" type="image/jpeg">
+  <link rel="icon" href="./favicon_hvt.jpg" type="image/jpeg">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body data-lang="zh" data-theme="dark" data-page="home">
   <header class="site-header">
-    <div class="nav-shell">
-      <a class="brand" href="./index.html" aria-label="Human vs Trojan home"><img src="../favicon_hvt.jpg" alt=""></a>
-      <button class="nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" data-nav-toggle><span></span></button>
-      <nav class="site-nav" aria-label="Primary navigation" data-nav-wrap>
-        <a href="./index.html" aria-current="page"><span class="lang-zh">首页</span><span class="lang-en">Home</span></a>
-        <a href="./about.html"><span class="lang-zh">游戏背景</span><span class="lang-en">About</span></a>
-        <a href="./rule.html"><span class="lang-zh">游戏规则</span><span class="lang-en">Rules</span></a>
-        <a href="./game.html"><span class="lang-zh">游戏介绍</span><span class="lang-en">The Game</span></a>
-      </nav>
-      <div class="nav-tools">
-        <button class="nav-tool" type="button" data-theme-toggle aria-label="Switch theme"><span class="tool-icon" aria-hidden="true">☾</span><span class="lang-zh">深色</span><span class="lang-en">Dark</span></button>
-        <button class="nav-tool" type="button" data-lang-toggle aria-label="Switch language">EN</button>
-        <a class="nav-cta" href="./game.html"><span class="lang-zh">开始游戏</span><span class="lang-en">Play Now</span></a>
+    <div class="header-inner">
+      <a class="brand" href="./index.html">
+        <img class="brand-mark" src="./favicon_hvt.jpg" alt="">
+        <span class="brand-text">
+          Human vs Trojan
+          <small>
+            <span class="lang-zh">双人网络攻防对抗</span>
+            <span class="lang-en">Two-Player Cyber Duel</span>
+          </small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false" data-nav-toggle>
+        <span class="nav-toggle-bar" aria-hidden="true"></span>
+        <span class="visually-hidden"><span class="lang-zh">导航</span><span class="lang-en">Navigation</span></span>
+      </button>
+      <div class="nav-wrap" data-nav-wrap>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="./index.html" aria-current="page" data-nav-page="home"><span class="lang-zh">首页</span><span class="lang-en">Home</span></a>
+          <a href="./about.html" data-nav-page="about"><span class="lang-zh">背景</span><span class="lang-en">About</span></a>
+          <a href="./rule.html" data-nav-page="rule"><span class="lang-zh">规则</span><span class="lang-en">Rules</span></a>
+          <a href="./game.html" data-nav-page="game"><span class="lang-zh">开始游戏</span><span class="lang-en">Play</span></a>
+        </nav>
+        <div class="toolbar">
+          <button class="nav-tool" type="button" data-theme-toggle aria-label="切换到浅色主题" data-aria-zh="切换到浅色主题" data-aria-en="Switch to light theme"><span class="tool-icon" aria-hidden="true">☾</span><span class="lang-zh">深色</span><span class="lang-en">Dark</span></button>
+          <button class="nav-tool" type="button" data-lang-toggle aria-label="Switch language">EN</button>
+          <a class="ghost-btn" href="https://github.com/JeterZhou/hvt-web" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
       </div>
     </div>
   </header>
@@ -66,7 +80,6 @@
 
   <footer class="site-footer">
     <span>HUMAN VS TROJAN · HVT</span>
-    <span><span class="lang-zh">攻防之间，没有绝对安全。</span><span class="lang-en">THERE IS NO NEUTRAL GROUND.</span></span>
     <span>© <span id="year"></span> HVT</span>
   </footer>
 
@@ -93,14 +106,16 @@
         document.documentElement.lang = next === 'zh' ? 'zh-CN' : 'en';
         document.title = next === 'zh' ? 'Human vs Trojan｜双人网络攻防对抗' : 'Human vs Trojan | Two-Player Cyber Duel';
         if (langButton) langButton.textContent = next === 'zh' ? 'EN' : '中文';
+        if (navButton) navButton.setAttribute('aria-label', next === 'zh' ? '打开导航' : 'Open navigation');
+        if (themeButton) themeButton.setAttribute('aria-label', next === 'zh' ? themeButton.dataset.ariaZh : themeButton.dataset.ariaEn);
         try { localStorage.setItem('hvt_lang', next); } catch (_) { /* Storage may be unavailable. */ }
       };
       setLanguage(getSavedLanguage());
       if (langButton) langButton.addEventListener('click', () => setLanguage(body.dataset.lang === 'zh' ? 'en' : 'zh'));
 
       if (themeButton) {
-        themeButton.addEventListener('click', () => {
-          const light = body.dataset.theme !== 'light';
+        const setTheme = (theme) => {
+          const light = theme === 'light';
           body.dataset.theme = light ? 'light' : 'dark';
           const icon = themeButton.querySelector('.tool-icon');
           if (icon) icon.textContent = light ? '☀' : '☾';
@@ -108,21 +123,37 @@
           const en = themeButton.querySelector('.lang-en');
           if (zh) zh.textContent = light ? '浅色' : '深色';
           if (en) en.textContent = light ? 'Light' : 'Dark';
-          themeButton.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
-        });
+          themeButton.dataset.ariaZh = light ? '切换到深色主题' : '切换到浅色主题';
+          themeButton.dataset.ariaEn = light ? 'Switch to dark theme' : 'Switch to light theme';
+          themeButton.setAttribute('aria-label', body.dataset.lang === 'zh' ? themeButton.dataset.ariaZh : themeButton.dataset.ariaEn);
+          themeButton.setAttribute('aria-pressed', String(light));
+          try { localStorage.setItem('hvt_theme', body.dataset.theme); } catch (_) { /* Storage may be unavailable. */ }
+        };
+        let savedTheme = 'dark';
+        try {
+          const saved = localStorage.getItem('hvt_theme');
+          if (saved === 'dark' || saved === 'light') savedTheme = saved;
+        } catch (_) { /* Storage may be unavailable. */ }
+        setTheme(savedTheme);
+        themeButton.addEventListener('click', () => setTheme(body.dataset.theme === 'light' ? 'dark' : 'light'));
       }
 
       if (navButton && nav) {
         navButton.addEventListener('click', () => {
           const open = navButton.getAttribute('aria-expanded') !== 'true';
           navButton.setAttribute('aria-expanded', String(open));
-          navButton.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+          body.classList.toggle('nav-open', open);
+          const english = body.dataset.lang === 'en';
+          navButton.setAttribute('aria-label', open
+            ? (english ? 'Close navigation' : '关闭导航')
+            : (english ? 'Open navigation' : '打开导航'));
           nav.classList.toggle('is-open', open);
         });
         nav.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => {
           nav.classList.remove('is-open');
+          body.classList.remove('nav-open');
           navButton.setAttribute('aria-expanded', 'false');
-          navButton.setAttribute('aria-label', 'Open navigation');
+          navButton.setAttribute('aria-label', body.dataset.lang === 'zh' ? '打开导航' : 'Open navigation');
         }));
       }
     })();
