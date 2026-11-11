@@ -59,6 +59,11 @@
       <div class="hero-bottom-right"><span class="lang-zh">一个来自Jeter的游戏</span><span class="lang-en">A Game from Jeter.</span><span class="bottom-mark" aria-hidden="true">✶</span></div>
     </section>
 
+    <aside class="image-credit" aria-label="Image credit">
+      <span>Image Credit: NASA, ESA, and the Hubble Space Telescope team. Image processing: Gladys Kober.</span>
+      <span>Source: <a href="https://science.nasa.gov/missions/hubble/nasas-hubble-captures-crimson-cloud-sparkling-with-white-blue-stars/?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer">NASA Science — Hubble</a></span>
+    </aside>
+
     <section class="after-hero" id="intro" aria-labelledby="intro-title">
       <div class="section-topline"><span>HVT / THE BATTLEFIELD</span><span>01 — 03</span></div>
       <div class="after-grid">
@@ -90,8 +95,11 @@
       const themeButton = document.querySelector('[data-theme-toggle]');
       const navButton = document.querySelector('[data-nav-toggle]');
       const nav = document.querySelector('[data-nav-wrap]');
+      const updateHeaderState = () => body.classList.toggle('hero-scrolled', window.scrollY > 24);
       const year = document.getElementById('year');
       if (year) year.textContent = new Date().getFullYear();
+      updateHeaderState();
+      window.addEventListener('scroll', updateHeaderState, { passive: true });
 
       const getSavedLanguage = () => {
         try {
